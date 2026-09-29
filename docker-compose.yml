@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: vinyl_store_db
+    environment:
+      POSTGRES_DB: vinyl_store
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "1234"
+    ports:
+      - "5433:5432"
+    volumes:
+      - vinyl_store_data:/var/lib/postgresql/data
+      - ./src/main/resources/database.sql:/docker-entrypoint-initdb.d/01_database.sql:ro
+
+volumes:
+  vinyl_store_data:
