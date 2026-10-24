@@ -12,8 +12,22 @@ public class DatabaseInitializer {
         try (Connection connection = DatabaseManager.getConnection();
              Statement statement = connection.createStatement()) {
             createAndRepairUsers(statement);
+            createAndRepairVinyl(statement);
             createAndRepairOrders(statement);
         }
+    }
+
+    private static void createAndRepairVinyl(Statement statement) throws SQLException {
+        statement.executeUpdate("""
+                create table if not exists vinyl (
+                    id bigserial primary key,
+                    title varchar(160) not null,
+                    artist varchar(120) not null,
+                    genre varchar(80),
+                    price numeric(10, 2) not null check (price > 0),
+                    stock integer not null default 0 check (stock >= 0)
+                )
+                """);
     }
 
     private static void createAndRepairUsers(Statement statement) throws SQLException {
@@ -64,6 +78,26 @@ public class DatabaseInitializer {
         statement.executeUpdate("alter table orders add column if not exists total_price numeric(10, 2)");
         statement.executeUpdate("alter table orders add column if not exists status varchar(20)");
         statement.executeUpdate("alter table orders add column if not exists created_at timestamp default current_timestamp");
+        statement.executeUpdate("""
+                do $$
+                begin
+                    if exists (
+                        select 1 from information_schema.columns
+                        where table_schema = 'public' and table_name = 'orders' and column_name = 'vinyl_title'
+                    ) then
+                        update orders set album_title = vinyl_title
+                        where (album_title is null or trim(album_title) = '') and vinyl_title is not null;
+                    end if;
+
+                    if exists (
+                        select 1 from information_schema.columns
+                        where table_schema = 'public' and table_name = 'orders' and column_name = 'price'
+                    ) then
+                        update orders set total_price = price
+                        where total_price is null and price is not null;
+                    end if;
+                end $$;
+                """);
         statement.executeUpdate("update orders set album_title = 'Unknown album' where album_title is null or trim(album_title) = ''");
         statement.executeUpdate("update orders set album_title = U&'\\041D\\0435 \\0443\\043A\\0430\\0437\\0430\\043D\\043E' where album_title like U&'\\0420%'");
         statement.executeUpdate("update orders set album_title = 'Abbey Road' where lower(artist) = 'the beatles' and album_title in ('Unknown album', U&'\\041D\\0435 \\0443\\043A\\0430\\0437\\0430\\043D\\043E')");

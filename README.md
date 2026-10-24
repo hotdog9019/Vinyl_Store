@@ -16,6 +16,7 @@
 - Свои исключения для бизнес-ошибок и ненайденных сущностей.
 - Экспорт заказов, пластинок и пользователей в `exports/orders.xlsx`.
 - Docker Compose для запуска PostgreSQL.
+- JavaFX-клиент для КР №2 с прямым JDBC-подключением к PostgreSQL.
 
 ```bash
 docker compose up -d
@@ -54,6 +55,30 @@ mvn compile exec:java
 ru.mirea.project.Main
 ```
 
+## Запуск JavaFX-клиента
+
+Перед запуском поднимите PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Затем запустите настольное приложение:
+
+```bash
+mvn javafx:run
+```
+
+Главный класс JavaFX-приложения:
+
+```text
+ru.mirea.project.fx.VinylStoreFxApplication
+```
+
+В интерфейсе доступны обзор статистики, таблицы пользователей, заказов и каталога пластинок, CRUD-операции, поиск заказов, фильтры, сортировка и экспорт данных в Excel. При создании заказа пластинка выбирается из каталога, а сумма рассчитывается по цене и количеству. Телефоны пользователей проверяются и сохраняются в формате `+7XXXXXXXXXX`.
+Ключевой интерфейс вынесен в FXML: `src/main/resources/ru/mirea/project/fx/main-view.fxml`.
+Обработчики JavaFX находятся в `src/main/java/ru/mirea/project/fx/MainController.java`.
+
 ## Подключение
 
 По умолчанию приложение подключается к:
@@ -71,5 +96,15 @@ VINYL_DB_URL
 VINYL_DB_USER
 VINYL_DB_PASSWORD
 ```
+
+Также параметры лежат в `src/main/resources/database.properties`:
+
+```text
+db.url=jdbc:postgresql://localhost:5432/vinyl_store
+db.user=postgres
+db.password=1234
+```
+
+Переменные окружения имеют приоритет над файлом настроек.
 
 ER-описание находится в `docs/er-diagram.md`.

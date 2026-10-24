@@ -16,6 +16,7 @@
         <junit.version>5.13.4</junit.version>
         <assertj.version>3.27.3</assertj.version>
         <poi.version>5.4.1</poi.version>
+        <javafx.version>21.0.5</javafx.version>
     </properties>
 
     <dependencies>
@@ -39,6 +40,21 @@
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>${javafx.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -90,6 +106,14 @@
                 <version>3.5.0</version>
                 <configuration>
                     <mainClass>ru.mirea.project.Main</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>ru.mirea.project.fx.VinylStoreFxApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>

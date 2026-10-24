@@ -1,11 +1,21 @@
 drop table if exists orders;
+drop table if exists vinyl;
 drop table if exists users;
 
 create table users (
     id bigserial primary key,
-    full_name varchar(120) not null,
+    full_name varchar(50) not null,
     email varchar(120) not null unique,
-    phone varchar(30) not null
+    phone varchar(30) not null unique
+);
+
+create table vinyl (
+    id bigserial primary key,
+    title varchar(50) not null,
+    artist varchar(50) not null,
+    genre varchar(30),
+    price numeric(10, 2) not null check (price > 0),
+    stock integer not null default 0 check (stock >= 0)
 );
 
 create table orders (
@@ -24,7 +34,14 @@ insert into users (full_name, email, phone) values
 ('Анна Климаш', 'anna.klima@mail.ru', '+79999999998'),
 ('Саша Чобан', 'sacha.choba@mail.ru', '+79999999997'),
 ('Глеб Логвинов', 'gleb.logvino@mail.ru', '+79999999996'),
-('Мария Соколова', 'maria@example.com', '+79002002020');
+('Мария Соколова', 'maria@yandex.ru', '+79002002020');
+
+insert into vinyl (title, artist, genre, price, stock) values
+('The Dark Side of the Moon', 'Pink Floyd', 'Rock', 3490.00, 10),
+('Kind of Blue', 'Miles Davis', 'Jazz', 2600.00, 8),
+('Abbey Road', 'The Beatles', 'Rock', 4100.00, 7),
+('Random Access Memories', 'Daft Punk', 'Electronic', 4600.00, 5),
+('Nevermind', 'Nirvana', 'Grunge', 3200.00, 9);
 
 insert into orders (user_id, album_title, artist, quantity, total_price, status) values
 (1, 'The Dark Side of the Moon', 'Pink Floyd', 1, 3490.00, 'PAID'),

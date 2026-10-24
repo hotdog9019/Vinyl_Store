@@ -102,6 +102,27 @@ public class UserRepository implements CrudRepository<User> {
         }
     }
 
+    public boolean existsByEmailExceptId(String email, long excludedId) throws SQLException {
+        String sql = "select 1 from users where lower(email) = lower(?) and id <> ?";
+        return exists(sql, email, excludedId);
+    }
+
+    public boolean existsByPhoneExceptId(String phone, long excludedId) throws SQLException {
+        String sql = "select 1 from users where phone = ? and id <> ?";
+        return exists(sql, phone, excludedId);
+    }
+
+    private boolean exists(String sql, String value, long excludedId) throws SQLException {
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, value);
+            statement.setLong(2, excludedId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
     private boolean hasNameColumn(Connection connection) throws SQLException {
         String sql = """
                 select 1

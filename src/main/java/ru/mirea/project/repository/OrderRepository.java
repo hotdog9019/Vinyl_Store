@@ -17,19 +17,43 @@ import java.util.Optional;
 public class OrderRepository implements CrudRepository<Order> {
     @Override
     public long create(Order order) throws SQLException {
-        String sql = """
-                insert into orders (user_id, album_title, artist, quantity, total_price, status)
-                values (?, ?, ?, ?, ?, ?)
-                """;
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            fillOrderFields(statement, order);
-            statement.executeUpdate();
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getLong(1);
+        try (Connection connection = DatabaseManager.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                if (order.getStatus() == OrderStatus.COMPLETED) {
+                    decreaseVinylStock(connection, order);
                 }
-                throw new SQLException("База данных не вернула id созданного заказа.");
+
+                boolean legacyColumns = hasColumn(connection, "vinyl_title") && hasColumn(connection, "price");
+                String sql = legacyColumns
+                        ? """
+                          insert into orders
+                              (user_id, album_title, vinyl_title, artist, quantity, total_price, price, status)
+                          values (?, ?, ?, ?, ?, ?, ?, ?)
+                          """
+                        : """
+                          insert into orders (user_id, album_title, artist, quantity, total_price, status)
+                          values (?, ?, ?, ?, ?, ?)
+                          """;
+                try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                    if (legacyColumns) {
+                        fillLegacyOrderFields(statement, order);
+                    } else {
+                        fillOrderFields(statement, order);
+                    }
+                    statement.executeUpdate();
+                    try (ResultSet keys = statement.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            long id = keys.getLong(1);
+                            connection.commit();
+                            return id;
+                        }
+                        throw new SQLException("База данных не вернула id созданного заказа.");
+                    }
+                }
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
             }
         }
     }
@@ -158,26 +182,72 @@ public class OrderRepository implements CrudRepository<Order> {
 
     @Override
     public boolean update(Order order) throws SQLException {
-        String sql = """
-                update orders
-                set user_id = ?, album_title = ?, artist = ?, quantity = ?, total_price = ?, status = ?
-                where id = ?
-                """;
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            fillOrderFields(statement, order);
-            statement.setLong(7, order.getId());
-            return statement.executeUpdate() > 0;
+        try (Connection connection = DatabaseManager.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                Optional<Order> existing = findByIdForUpdate(connection, order.getId());
+                if (existing.isEmpty()) {
+                    connection.rollback();
+                    return false;
+                }
+
+                if (existing.get().getStatus() != OrderStatus.COMPLETED
+                        && order.getStatus() == OrderStatus.COMPLETED) {
+                    decreaseVinylStock(connection, order);
+                }
+
+                boolean legacyColumns = hasColumn(connection, "vinyl_title") && hasColumn(connection, "price");
+                String sql = legacyColumns
+                        ? """
+                          update orders set user_id = ?, album_title = ?, vinyl_title = ?, artist = ?,
+                              quantity = ?, total_price = ?, price = ?, status = ? where id = ?
+                          """
+                        : """
+                          update orders set user_id = ?, album_title = ?, artist = ?, quantity = ?,
+                              total_price = ?, status = ? where id = ?
+                          """;
+                try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                    if (legacyColumns) {
+                        fillLegacyOrderFields(statement, order);
+                        statement.setLong(9, order.getId());
+                    } else {
+                        fillOrderFields(statement, order);
+                        statement.setLong(7, order.getId());
+                    }
+                    boolean updated = statement.executeUpdate() > 0;
+                    connection.commit();
+                    return updated;
+                }
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            }
         }
     }
 
     @Override
     public boolean delete(long id) throws SQLException {
-        String sql = "delete from orders where id = ?";
-        try (Connection connection = DatabaseManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setLong(1, id);
-            return statement.executeUpdate() > 0;
+        try (Connection connection = DatabaseManager.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                Optional<Order> existing = findByIdForUpdate(connection, id);
+                if (existing.isEmpty()) {
+                    connection.rollback();
+                    return false;
+                }
+                if (existing.get().getStatus() == OrderStatus.COMPLETED) {
+                    increaseVinylStock(connection, existing.get());
+                }
+                try (PreparedStatement statement = connection.prepareStatement("delete from orders where id = ?")) {
+                    statement.setLong(1, id);
+                    boolean deleted = statement.executeUpdate() > 0;
+                    connection.commit();
+                    return deleted;
+                }
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            }
         }
     }
 
@@ -188,6 +258,82 @@ public class OrderRepository implements CrudRepository<Order> {
         statement.setInt(4, order.getQuantity());
         statement.setBigDecimal(5, order.getTotalPrice());
         statement.setString(6, order.getStatus().name());
+    }
+
+    private void fillLegacyOrderFields(PreparedStatement statement, Order order) throws SQLException {
+        statement.setLong(1, order.getUserId());
+        statement.setString(2, order.getAlbumTitle());
+        statement.setString(3, order.getAlbumTitle());
+        statement.setString(4, order.getArtist());
+        statement.setInt(5, order.getQuantity());
+        statement.setBigDecimal(6, order.getTotalPrice());
+        statement.setBigDecimal(7, order.getTotalPrice());
+        statement.setString(8, order.getStatus().name());
+    }
+
+    private boolean hasColumn(Connection connection, String columnName) throws SQLException {
+        String sql = """
+                select 1 from information_schema.columns
+                where table_schema = 'public' and table_name = 'orders' and column_name = ?
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, columnName);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
+        }
+    }
+
+    private Optional<Order> findByIdForUpdate(Connection connection, long id) throws SQLException {
+        String sql = """
+                select id, user_id, album_title, artist, quantity, total_price, status, created_at
+                from orders where id = ? for update
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setLong(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? Optional.of(mapOrder(resultSet)) : Optional.empty();
+            }
+        }
+    }
+
+    private void decreaseVinylStock(Connection connection, Order order) throws SQLException {
+        String sql = """
+                update vinyl
+                set stock = stock - ?
+                where id = (
+                    select v.id from vinyl v
+                    where lower(v.title) = lower(?) and lower(v.artist) = lower(?)
+                    order by v.id limit 1
+                ) and stock >= ?
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, order.getQuantity());
+            statement.setString(2, order.getAlbumTitle());
+            statement.setString(3, order.getArtist());
+            statement.setInt(4, order.getQuantity());
+            if (statement.executeUpdate() == 0) {
+                throw new SQLException("Пластинка не найдена в каталоге или на складе недостаточно экземпляров.");
+            }
+        }
+    }
+
+    private void increaseVinylStock(Connection connection, Order order) throws SQLException {
+        String sql = """
+                update vinyl
+                set stock = stock + ?
+                where id = (
+                    select v.id from vinyl v
+                    where lower(v.title) = lower(?) and lower(v.artist) = lower(?)
+                    order by v.id limit 1
+                )
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, order.getQuantity());
+            statement.setString(2, order.getAlbumTitle());
+            statement.setString(3, order.getArtist());
+            statement.executeUpdate();
+        }
     }
 
     private List<Order> mapOrders(ResultSet resultSet) throws SQLException {

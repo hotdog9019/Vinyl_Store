@@ -1,0 +1,93 @@
+.app-root {
+    -fx-background-color: #f5f7fb;
+    -fx-font-family: "Segoe UI", "Arial";
+}
+
+.app-header {
+    -fx-background-color: white;
+    -fx-padding: 20 24;
+    -fx-border-color: transparent transparent #d9e0ea transparent;
+}
+
+.app-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #172033;
+}
+
+.app-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: #667085;
+}
+
+.content {
+    -fx-padding: 20;
+}
+
+.toolbar {
+    -fx-background-color: white;
+    -fx-padding: 10;
+    -fx-border-color: #d9e0ea;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.toolbar .text-field,
+.toolbar .combo-box {
+    -fx-min-height: 32;
+}
+
+.data-table {
+    -fx-background-color: white;
+    -fx-border-color: #d9e0ea;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.primary-button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+}
+
+.danger-button {
+    -fx-background-color: #dc2626;
+    -fx-text-fill: white;
+    -fx-font-weight: 600;
+}
+
+.metric-card,
+.section {
+    -fx-background-color: white;
+    -fx-padding: 18;
+    -fx-border-color: #d9e0ea;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.metric-title,
+.section-title {
+    -fx-font-size: 13px;
+    -fx-text-fill: #667085;
+}
+
+.metric-value {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #172033;
+}
+
+.status-breakdown {
+    -fx-font-size: 15px;
+    -fx-text-fill: #172033;
+}
+
+.dialog-pane {
+    -fx-font-family: "Segoe UI", "Arial";
+}
+
+.dialog-pane .text-field,
+.dialog-pane .combo-box,
+.dialog-pane .spinner {
+    -fx-min-height: 32;
+}
